@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Image Gallery</title>
+    <style>
+        :root {
+            --bg: #eef0f2;
+            --ink: #1c2530;
+            --muted: #5d6a78;
+            --card: #ffffff;
+            --accent: #2f4bff;
+            --line: #d5dae0;
+            --radius: 10px;
+            --ease: cubic-bezier(.2, .7, .2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #12171d;
+                --ink: #e8ecf0;
+                --muted: #98a4b1;
+                --card: #1b222b;
+                --line: #2b3541;
+                --accent: #7d92ff;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+        }
+
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 20px 72px;
+        }
+
+        header {
+            margin-bottom: 28px;
+        }
+
+        h1 {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(1.9rem, 4vw, 2.8rem);
+            font-weight: 600;
+            letter-spacing: -.01em;
+        }
+
+        header p {
+            color: var(--muted);
+            max-width: 52ch;
+            margin-top: 6px;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 22px 0 28px;
+        }
+
+        .chip {
+            font: inherit;
+            font-size: .92rem;
+            cursor: pointer;
+            color: var(--ink);
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 7px 16px;
+            transition: background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
+        }
+
+        .chip:hover {
+            border-color: var(--accent);
+        }
+
+        .chip[aria-pressed="true"] {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-auto-flow: dense;
+        }
+
+        .item {
+            position: relative;
+            padding: 0;
+            border: 0;
+            cursor: zoom-in;
+            overflow: hidden;
+            border-radius: var(--radius);
+            background: var(--card);
+            aspect-ratio: 4 / 3;
+            transition: opacity .35s var(--ease), transform .35s var(--ease), box-shadow .35s var(--ease);
+        }
+
+        .item.tall {
+            aspect-ratio: 3 / 4;
+            grid-row: span 2;
+        }
+
+        .item.hide {
+            display: none;
+        }
+
+        .item.fade {
+            opacity: 0;
+            transform: scale(.96);
+        }
+
+        .item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform .6s var(--ease), filter .4s var(--ease);
+        }
+
+        .item:hover,
+        .item:focus-visible {
+            box-shadow: 0 14px 30px rgba(20, 30, 50, .22);
+        }
+
+        .item:hover img,
+        .item:focus-visible img {
+            transform: scale(1.08);
+            filter: saturate(1.15);
+        }
+
+        .item .cap {
+            position: absolute;
+            inset: auto 0 0 0;
+            padding: 36px 14px 12px;
+            text-align: left;
+            color: #fff;
+            background: linear-gradient(transparent, rgba(0, 0, 0, .65));
+            transform: translateY(100%);
+            transition: transform .35s var(--ease);
+        }
+
+        .item .cap small {
+            display: block;
+            opacity: .8;
+        }
+
+        .item:hover .cap,
+        .item:focus-visible .cap {
+            transform: translateY(0);
+        }
+
+        .item:focus-visible,
+        .chip:focus-visible,
+        .lb button:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* Lightbox */
+        .lb {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: grid;
+            place-items: center;
+            background: rgba(8, 12, 18, .92);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .3s var(--ease), visibility .3s;
+        }
+
+        .lb.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .lb figure {
+            max-width: min(92vw, 1000px);
+            text-align: center;
+            color: #fff;
+            transform: scale(.94);
+            transition: transform .35s var(--ease);
+        }
+
+        .lb.open figure {
+            transform: scale(1);
+        }
+
+        .lb img {
+            max-width: 100%;
+            max-height: 74vh;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+            transition: opacity .2s;
+        }
+
+        .lb img.swap {
+            opacity: 0;
+        }
+
+        .lb figcaption {
+            margin-top: 14px;
+        }
+
+        .lb figcaption span {
+            display: block;
+            color: #aab4c0;
+            font-size: .9rem;
+        }
+
+        .lb button {
+            position: absolute;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 0;
+            cursor: pointer;
+            background: rgba(255, 255, 255, .12);
+            color: #fff;
+            font-size: 1.4rem;
+            line-height: 1;
+            transition: background .25s var(--ease), transform .25s var(--ease);
+        }
+
+        .lb button:hover {
+            background: rgba(255, 255, 255, .28);
+            transform: scale(1.08);
+        }
+
+        .lb .prev {
+            left: 16px;
+            top: 50%;
+            margin-top: -23px;
+        }
+
+        .lb .next {
+            right: 16px;
+            top: 50%;
+            margin-top: -23px;
+        }
+
+        .lb .close {
+            top: 16px;
+            right: 16px;
+        }
+
+        @media (max-width: 560px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .item .cap {
+                transform: translateY(0);
+                padding-top: 24px;
+                font-size: .8rem;
+            }
+
+            .lb .prev,
+            .lb .next {
+                top: auto;
+                bottom: 20px;
+                margin: 0;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                transition-duration: .01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <h1>Image Gallery</h1>
+            <p>Filter by category, then open any picture to browse with the arrow keys or swipe.</p>
+        </header>
+        <div class="filters" id="filters" role="group" aria-label="Filter by category"></div>
+        <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Image viewer">
+        <button class="close" aria-label="Close viewer">&times;</button>
+        <button class="prev" aria-label="Previous image">&#8249;</button>
+        <figure>
+            <img id="lbImg" alt="">
+            <figcaption><strong id="lbTitle"></strong><span id="lbMeta"></span></figcaption>
+        </figure>
+        <button class="next" aria-label="Next image">&#8250;</button>
+    </div>
+
+    <script>
+        /* ---------- 1. Your images ----------
+           Replace `src` with real image URLs (e.g. "photos/lake.jpg").
+           The art() helper below only draws placeholders so this file works on its own. */
+        function art(kind, a, b, c) {
+            let body = '';
+            if (kind === 'nature') {
+                body = `<circle cx="300" cy="110" r="46" fill="${c}"/>
+      <path d="M0 300 Q150 190 300 280 T600 250 V450 H0Z" fill="${b}" opacity=".6"/>
+      <path d="M0 360 Q200 260 380 340 T600 320 V450 H0Z" fill="${b}"/>`;
+            } else if (kind === 'city') {
+                for (let i = 0; i < 9; i++) {
+                    const h = 120 + ((i * 97) % 190), x = i * 68;
+                    body += `<rect x="${x}" y="${450 - h}" width="58" height="${h}" fill="${b}" opacity="${0.55 + (i % 3) * .2}"/>`;
+                }
+                body += `<circle cx="470" cy="90" r="30" fill="${c}"/>`;
+            } else {
+                body = `<circle cx="190" cy="200" r="130" fill="${b}" opacity=".7"/>
+      <circle cx="380" cy="270" r="170" fill="${c}" opacity=".55"/>
+      <rect x="250" y="60" width="200" height="200" rx="30" fill="${b}" opacity=".5" transform="rotate(18 350 160)"/>`;
+            }
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${c}"/></linearGradient></defs>
+    <rect width="600" height="450" fill="url(#g)"/>${body}</svg>`;
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        }
+
+        const images = [
+            { title: 'Morning ridge', category: 'Nature', src: art('nature', '#ffd6a5', '#2d6a4f', '#ff8c42'), tall: true },
+            { title: 'Glass towers', category: 'City', src: art('city', '#bde0fe', '#1d3557', '#ffffff') },
+            { title: 'Overlap', category: 'Abstract', src: art('abs', '#f8edeb', '#5e60ce', '#ff6b6b') },
+            { title: 'Pine valley', category: 'Nature', src: art('nature', '#cdeac0', '#1b4332', '#f6e27a') },
+            { title: 'Night blocks', category: 'City', src: art('city', '#3a0ca3', '#10002b', '#f9c74f'), tall: true },
+            { title: 'Soft circles', category: 'Abstract', src: art('abs', '#caf0f8', '#0077b6', '#ffafcc') },
+            { title: 'Dusk hills', category: 'Nature', src: art('nature', '#e0aaff', '#3c096c', '#ff9e00') },
+            { title: 'Skyline haze', category: 'City', src: art('city', '#fcd5ce', '#6d597a', '#fff1e6') },
+            { title: 'Orbit', category: 'Abstract', src: art('abs', '#2b2d42', '#ef233c', '#8d99ae'), tall: true },
+            { title: 'Lake light', category: 'Nature', src: art('nature', '#a9def9', '#264653', '#fff3b0') },
+            { title: 'Harbor towers', category: 'City', src: art('city', '#caffbf', '#0b525b', '#fdffb6') },
+            { title: 'Folded colour', category: 'Abstract', src: art('abs', '#ffe5d9', '#9d4edd', '#06d6a0') }
+        ];
+
+        /* ---------- 2. Build filters + grid ---------- */
+        const grid = document.getElementById('grid');
+        const filtersEl = document.getElementById('filters');
+        const categories = ['All', ...new Set(images.map(i => i.category))];
+
+        categories.forEach(cat => {
+            const b = document.createElement('button');
+            b.className = 'chip'; b.textContent = cat; b.setAttribute('aria-pressed', cat === 'All');
+            b.addEventListener('click', () => setFilter(cat));
+            filtersEl.appendChild(b);
+        });
+
+        images.forEach(img => {
+            const b = document.createElement('button');
+            b.className = 'item' + (img.tall ? ' tall' : '');
+            b.dataset.category = img.category;
+            b.setAttribute('aria-label', `Open ${img.title}`);
+            b.innerHTML = `<img src="${img.src}" alt="${img.title}" loading="lazy">
+    <span class="cap"><strong>${img.title}</strong><small>${img.category}</small></span>`;
+            b.addEventListener('click', () => openLb(b));
+            grid.appendChild(b);
+        });
+        const items = [...grid.children];
+
+        function setFilter(cat) {
+            [...filtersEl.children].forEach(c => c.setAttribute('aria-pressed', c.textContent === cat));
+            items.forEach(el => {
+                const show = cat === 'All' || el.dataset.category === cat;
+                if (show) { el.classList.remove('hide'); requestAnimationFrame(() => el.classList.remove('fade')); }
+                else { el.classList.add('fade'); setTimeout(() => el.classList.contains('fade') && el.classList.add('hide'), 350); }
+            });
+        }
+
+        /* ---------- 3. Lightbox ---------- */
+        const lb = document.getElementById('lb');
+        const lbImg = document.getElementById('lbImg');
+        let visible = [], index = 0, lastFocus = null;
+
+        function openLb(el) {
+            visible = items.filter(i => !i.classList.contains('hide') && !i.classList.contains('fade'));
+            index = visible.indexOf(el);
+            lastFocus = el;
+            show();
+            lb.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            lb.querySelector('.close').focus();
+        }
+        function show() {
+            const data = images[items.indexOf(visible[index])];
+            lbImg.classList.add('swap');
+            setTimeout(() => {
+                lbImg.src = data.src; lbImg.alt = data.title;
+                document.getElementById('lbTitle').textContent = data.title;
+                document.getElementById('lbMeta').textContent = `${data.category} \u2022 ${index + 1} of ${visible.length}`;
+                lbImg.classList.remove('swap');
+            }, 150);
+        }
+        function step(dir) { index = (index + dir + visible.length) % visible.length; show(); }
+        function closeLb() {
+            lb.classList.remove('open');
+            document.body.style.overflow = '';
+            lastFocus && lastFocus.focus();
+        }
+
+        lb.querySelector('.next').addEventListener('click', () => step(1));
+        lb.querySelector('.prev').addEventListener('click', () => step(-1));
+        lb.querySelector('.close').addEventListener('click', closeLb);
+        lb.addEventListener('click', e => { if (e.target === lb) closeLb(); });
+        document.addEventListener('keydown', e => {
+            if (!lb.classList.contains('open')) return;
+            if (e.key === 'Escape') closeLb();
+            if (e.key === 'ArrowRight') step(1);
+            if (e.key === 'ArrowLeft') step(-1);
+        });
+
+        /* Swipe on touch screens */
+        let startX = 0;
+        lb.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+        lb.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - startX;
+            if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
+        });
+    </script>
+</body>
+
+</html>
